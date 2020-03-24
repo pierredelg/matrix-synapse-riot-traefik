@@ -1,0 +1,83 @@
+version: '3.4'
+
+volumes:
+  media-store:
+
+services:
+
+  ###########################
+  #         TRAEFIK         #
+  ###########################
+
+  traefik:
+    image: traefik
+    restart: always
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+
+  ###########################
+  #       POSTGRESQL        #
+  ###########################
+
+  db:
+    container_name: postgres_matrix
+    restart: unless-stopped
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=synapse
+      - POSTGRES_PASSWORD=synapse
+    volumes:
+      - ./schemas:/var/lib/postgresql/data
+    labels:
+      - traefik.enable=false
+
+
+  ###########################
+  #         SYNAPSE         #
+  ###########################
+
+  synapse:
+    container_name: synapse_matrix
+    image: matrixdotorg/synapse:latest
+    restart: unless-stopped
+    environment:
+      - SYNAPSE_CONFIG_PATH=/etc/homeserver.yaml
+    volumes:
+      - ./config/homeserver.yaml:/etc/homeserver.yaml
+      - ./config/matrix-local-signing.key:/etc/synapse.matrix.signing.key
+      - ./config/matrix-synapse.log:/synapse.log
+      - ./files:/data
+      - media-store:/media_store
+    depends_on:
+      - db
+    labels:
+      - traefik.enable=true
+      - traefik.port=8008
+      - traefik.http.routers.synapse.entryPoints=web
+      - traefik.http.routers.synapse.rule=Host(`matrix.local`)
+
+
+  ###########################
+  #          RIOT           #
+  ###########################
+
+  riot:
+    container_name: riot_matrix
+    restart: unless-stopped
+    image: bubuntux/riot-web
+    depends_on:
+      - synapse
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.riot.entryPoints=web
+      - traefik.http.routers.riot.rule=Host(`riot.local`)

@@ -1,0 +1,35 @@
+## Server ##
+ 
+server_name: "synapse.matrix"
+log_config: "synapse.log"
+report_stats: false
+enable_registration: true
+
+## Ports ##
+ 
+listeners:
+ - port: 8008
+   tls: false
+   bind_addresses: ["0.0.0.0"]
+   type: http
+   x_forwarded: true
+ 
+   resources:
+     - names: [client, federation]
+       compress: false
+ 
+## Database ##
+ 
+database:
+ name: "psycopg2"
+ args:
+   user: "synapse"
+   password: "synapse"
+   database: "synapse"
+   host: "db"
+   port: "5432"
+ 
+
+
+
+ 
